@@ -1,15 +1,15 @@
--- Load the socket module
 local socket = require("socket")
+local ssl = require("ssl")
+local dkjson = require("dkjson")
 
 -- Define the URL for the GET request
-local url = "https://httpbin.org/uuid"
+local host = "httpbin.org"
+local path = "/uuid"
 
 -- Create a socket and connect to the server
-local host = "httpbin.org"
 local sock = assert(socket.connect(host, 443))
 
 -- Upgrade the connection to SSL/TLS
-local ssl = require("ssl")
 sock = assert(ssl.wrap(sock, {mode="client", protocol="tlsv1_2"}))
 assert(sock:dohandshake())
 
@@ -19,7 +19,7 @@ local request = string.format(
     "Host: %s\r\n" ..
     "Accept: application/json\r\n" ..
     "Connection: close\r\n\r\n",
-    "/uuid",
+    path,
     host
 )
 
@@ -44,19 +44,10 @@ while response[json_start] ~= "" do
 end
 local json_response = table.concat(response, "\n", json_start + 1)
 
--- Simple JSON parsing (for demonstration purposes)
-local function parse_json(json_str)
-    local t = {}
-    for k, v in json_str:gmatch('"([^"]+)"%s*:%s*"([^"]+)"') do
-        t[k] = v
-    end
-    return t
-end
+-- Parse the JSON response using dkjson
+local data = dkjson.decode(json_response)
 
--- Parse the JSON response
-local data = parse_json(json_response)
-
--- Fetch the UUID from the dictionary
-local uuid = data["uuid"]
+-- Fetch the UUID from the parsed data
+local uuid = data.uuid
 
 print("Fetched UUID: " .. tostring(uuid))
