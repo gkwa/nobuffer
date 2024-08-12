@@ -111,7 +111,6 @@ func (m *Nobuffer) installTestDependencies(
 			"libc-dev",
 			"openssl-dev",
 		}).
-		WithExec([]string{"luarocks", "install", "luasocket"}).
 		WithExec([]string{"luarocks", "install", "luasec"}).
 		WithExec([]string{"luarocks", "install", "dkjson"})
 }
