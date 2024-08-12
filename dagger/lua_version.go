@@ -33,7 +33,7 @@ func (lv LuaVersion) Executable() string {
 }
 
 func (lv LuaVersion) LuaIncludePath() string {
-	return `--with-lua-include=$(find /usr/include -name 'lua.h' | sed 's#/lua.h##' | head -n 1)`
+	return `--with-lua-include=$(find /usr/include -type f -name lua.h | sed 's#/lua\.h##' | head -n 1)`
 }
 
 func (lv LuaVersion) InterpreterFlag() string {
