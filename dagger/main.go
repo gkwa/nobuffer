@@ -2,98 +2,120 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"dagger/nobuffer/internal/dagger"
 )
 
 type Nobuffer struct{}
 
-const (
-	luaVersion      = "5.4"
-	alpineVersion   = "3.20"
-	luarocksVersion = "3.11.1"
-)
-
-// Return the result of running unit tests
 func (m *Nobuffer) Test(
 	ctx context.Context,
 	source *dagger.Directory,
+	// +optional
+	luaVersion string,
+	// +optional
+	alpineVersion string,
+	// +optional
+	luarocksVersion string,
 ) (string, error) {
-	return m.BuildEnv(source).
-		WithExec([]string{fmt.Sprintf("lua%s", luaVersion), "httpbin.lua"}).
+	lv := NewLuaVersion(luaVersion)
+	return m.BuildEnv(source, lv, alpineVersion, luarocksVersion).
+		WithExec([]string{lv.Executable(), "httpbin.lua"}).
 		Stdout(ctx)
 }
 
-// Build a ready-to-use development environment
 func (m *Nobuffer) BuildEnv(
 	source *dagger.Directory,
+	lv LuaVersion,
+	// +optional
+	alpineVersion string,
+	// +optional
+	luarocksVersion string,
 ) *dagger.Container {
-	return m.InstallLuaDependencies(m.InstallLuarocks(m.InstallLua(m.BaseEnv(source))))
+	return m.InstallLuaDependencies(
+		m.InstallLuarocks(
+			m.InstallLua(
+				m.BaseEnv(source, alpineVersion),
+				lv,
+			),
+			lv,
+			luarocksVersion,
+		),
+		lv,
+	)
 }
 
 func (m *Nobuffer) BaseEnv(
 	source *dagger.Directory,
+	// +optional
+	alpineVersion string,
 ) *dagger.Container {
+	av := NewAlpineVersion(alpineVersion)
 	return dag.Container().
-		From(fmt.Sprintf("alpine:%s", alpineVersion)).
+		From(av.ImageName()).
 		WithDirectory("/src", source).
 		WithWorkdir("/src").
 		WithExec([]string{"apk", "update"}).
 		WithExec([]string{"apk", "upgrade"}).
 		WithExec([]string{
 			"apk", "add", "--no-cache",
-			"wget",
-			"tar",
 			"gcc",
 			"libc-dev",
 			"make",
 			"openssl-dev",
 			"readline-dev",
+			"tar",
+			"wget",
 		})
 }
 
 func (m *Nobuffer) InstallLua(
 	base *dagger.Container,
+	lv LuaVersion,
 ) *dagger.Container {
 	return base.
 		WithExec([]string{
 			"apk", "add", "--no-cache",
-			fmt.Sprintf("lua%s", luaVersion),
-			fmt.Sprintf("lua%s-dev", luaVersion),
+			lv.PackageName(),
+			lv.DevPackageName(),
 		})
 }
 
 func (m *Nobuffer) InstallLuarocks(
 	base *dagger.Container,
+	lv LuaVersion,
+	// +optional
+	luarocksVersion string,
 ) *dagger.Container {
+	lr := NewLuarocksVersion(luarocksVersion)
 	return base.
 		WithExec([]string{
-			"wget", fmt.Sprintf("https://luarocks.org/releases/luarocks-%s.tar.gz", luarocksVersion),
+			"wget", lr.DownloadURL(),
 		}).
 		WithExec([]string{
-			"tar", "zxpf", fmt.Sprintf("luarocks-%s.tar.gz", luarocksVersion),
+			"tar", "zxpf", lr.ArchiveName(),
 		}).
-		WithWorkdir(fmt.Sprintf("/src/luarocks-%s", luarocksVersion)).
+		WithWorkdir(lr.ExtractedDirPath()).
 		WithExec([]string{
 			"./configure",
 			"--prefix=/usr",
-			fmt.Sprintf("--with-lua-include=/usr/include/lua%s", luaVersion),
+			lv.LuaIncludePath(),
 			"--with-lua=/usr",
-			fmt.Sprintf("--with-lua-interpreter=lua%s", luaVersion),
+			lv.InterpreterFlag(),
 		}).
 		WithExec([]string{"make"}).
 		WithExec([]string{"make", "install"}).
 		WithWorkdir("/src").
 		WithExec([]string{
 			"rm", "-rf",
-			fmt.Sprintf("luarocks-%s", luarocksVersion),
-			fmt.Sprintf("luarocks-%s.tar.gz", luarocksVersion),
+			lr.ExtractedDirPath(),
+			lr.ArchiveName(),
 		})
 }
 
 func (m *Nobuffer) InstallLuaDependencies(
 	base *dagger.Container,
+	lv LuaVersion,
 ) *dagger.Container {
 	return base.
 		WithExec([]string{"luarocks", "install", "luasocket"}).
