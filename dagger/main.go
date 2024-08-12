@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"dagger/nobuffer/internal/dagger"
 )
@@ -88,13 +89,7 @@ func (m *Nobuffer) baseEnv(
 		WithExec([]string{"wget", lr.DownloadURL()}).
 		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
 		WithWorkdir(lr.ExtractedDirPath()).
-		WithExec([]string{
-			"./configure",
-			"--prefix=/usr",
-			lv.LuaIncludePath(),
-			"--with-lua=/usr",
-			lv.InterpreterFlag(),
-		}).
+		WithExec([]string{"sh", "-c", strings.Join(lv.GetConfigureArgs(), " ")}).
 		WithExec([]string{"make"}).
 		WithExec([]string{"make", "install"}).
 		WithWorkdir("/src").

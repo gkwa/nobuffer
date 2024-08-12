@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type LuaVersion struct {
 	version string
@@ -30,9 +33,13 @@ func (lv LuaVersion) Executable() string {
 }
 
 func (lv LuaVersion) LuaIncludePath() string {
-	return fmt.Sprintf("--with-lua-include=/usr/include/lua%s", lv.version)
+	return `--with-lua-include=$(find /usr/include -name 'lua.h' | sed 's#/lua.h##' | head -n 1)`
 }
 
 func (lv LuaVersion) InterpreterFlag() string {
 	return fmt.Sprintf("--with-lua-interpreter=lua%s", lv.version)
+}
+
+func (lv LuaVersion) GetConfigureArgs() []string {
+	return strings.Split(fmt.Sprintf("./configure --prefix=/usr --with-lua=/usr %s %s", lv.LuaIncludePath(), lv.InterpreterFlag()), " ")
 }
