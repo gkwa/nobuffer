@@ -21,12 +21,28 @@ func (m *Nobuffer) Test(
 	luarocksVersion string,
 ) (string, error) {
 	lv := NewLuaVersion(luaVersion)
-	return m.BuildEnv(source, lv, imageName, imageVersion, luarocksVersion).
+	return m.BuildTestEnv(source, lv, imageName, imageVersion, luarocksVersion).
 		WithExec([]string{lv.Executable(), "httpbin.lua"}).
 		Stdout(ctx)
 }
 
 func (m *Nobuffer) BuildEnv(
+	ctx context.Context,
+	source *dagger.Directory,
+	// +optional
+	luaVersion string,
+	// +optional
+	imageName string,
+	// +optional
+	imageVersion string,
+	// +optional
+	luarocksVersion string,
+) *dagger.Container {
+	lv := NewLuaVersion(luaVersion)
+	return m.baseEnv(source, lv, imageName, imageVersion, luarocksVersion)
+}
+
+func (m *Nobuffer) BuildTestEnv(
 	source *dagger.Directory,
 	lv LuaVersion,
 	// +optional
@@ -36,27 +52,25 @@ func (m *Nobuffer) BuildEnv(
 	// +optional
 	luarocksVersion string,
 ) *dagger.Container {
-	return m.InstallLuaDependencies(
-		m.InstallLuarocks(
-			m.InstallLua(
-				m.BaseEnv(source, imageName, imageVersion),
-				lv,
-			),
-			lv,
-			luarocksVersion,
-		),
+	return m.installTestDependencies(
+		m.baseEnv(source, lv, imageName, imageVersion, luarocksVersion),
 		lv,
 	)
 }
 
-func (m *Nobuffer) BaseEnv(
+func (m *Nobuffer) baseEnv(
 	source *dagger.Directory,
+	lv LuaVersion,
 	// +optional
 	imageName string,
 	// +optional
 	imageVersion string,
+	// +optional
+	luarocksVersion string,
 ) *dagger.Container {
 	iv := NewImageVersion(imageName, imageVersion)
+	lr := NewLuarocksVersion(luarocksVersion)
+
 	return dag.Container().
 		From(iv.ImageName()).
 		WithDirectory("/src", source).
@@ -72,35 +86,11 @@ func (m *Nobuffer) BaseEnv(
 			"readline-dev",
 			"tar",
 			"wget",
-		})
-}
-
-func (m *Nobuffer) InstallLua(
-	base *dagger.Container,
-	lv LuaVersion,
-) *dagger.Container {
-	return base.
-		WithExec([]string{
-			"apk", "add", "--no-cache",
 			lv.PackageName(),
 			lv.DevPackageName(),
-		})
-}
-
-func (m *Nobuffer) InstallLuarocks(
-	base *dagger.Container,
-	lv LuaVersion,
-	// +optional
-	luarocksVersion string,
-) *dagger.Container {
-	lr := NewLuarocksVersion(luarocksVersion)
-	return base.
-		WithExec([]string{
-			"wget", lr.DownloadURL(),
 		}).
-		WithExec([]string{
-			"tar", "zxpf", lr.ArchiveName(),
-		}).
+		WithExec([]string{"wget", lr.DownloadURL()}).
+		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
 		WithWorkdir(lr.ExtractedDirPath()).
 		WithExec([]string{
 			"./configure",
@@ -119,7 +109,7 @@ func (m *Nobuffer) InstallLuarocks(
 		})
 }
 
-func (m *Nobuffer) InstallLuaDependencies(
+func (m *Nobuffer) installTestDependencies(
 	base *dagger.Container,
 	lv LuaVersion,
 ) *dagger.Container {
