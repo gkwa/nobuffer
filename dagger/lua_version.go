@@ -36,6 +36,10 @@ func (lv LuaVersion) LuaIncludePath() string {
 	return `--with-lua-include=$(find /usr/include -type f -name lua.h | sed 's#/lua\.h##' | head -n 1)`
 }
 
+func (lv LuaVersion) AssertSingleLuaH() string {
+	return `test $(find /usr/include -type f -name lua.h | wc -l) -eq 1`
+}
+
 func (lv LuaVersion) InterpreterFlag() string {
 	return fmt.Sprintf("--with-lua-interpreter=lua%s", lv.version)
 }

@@ -89,6 +89,7 @@ func (m *Nobuffer) baseEnv(
 		WithExec([]string{"wget", lr.DownloadURL()}).
 		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
 		WithWorkdir(lr.ExtractedDirPath()).
+		WithExec([]string{"sh", "-c", lv.AssertSingleLuaH()}).
 		WithExec([]string{"sh", "-c", strings.Join(lv.GetConfigureArgs(), " ")}).
 		WithExec([]string{"make"}).
 		WithExec([]string{"make", "install"}).
