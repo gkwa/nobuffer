@@ -79,11 +79,7 @@ func (m *Nobuffer) baseEnv(
 		WithExec([]string{"apk", "upgrade"}).
 		WithExec([]string{
 			"apk", "add", "--no-cache",
-			"gcc",
-			"libc-dev",
 			"make",
-			"openssl-dev",
-			"readline-dev",
 			"tar",
 			"wget",
 			lv.PackageName(),
@@ -114,6 +110,12 @@ func (m *Nobuffer) installTestDependencies(
 	lv LuaVersion,
 ) *dagger.Container {
 	return base.
+		WithExec([]string{
+			"apk", "add", "--no-cache",
+			"gcc",
+			"libc-dev",
+			"openssl-dev",
+		}).
 		WithExec([]string{"luarocks", "install", "luasocket"}).
 		WithExec([]string{"luarocks", "install", "luasec"})
 }
