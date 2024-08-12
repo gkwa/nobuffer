@@ -14,12 +14,14 @@ func (m *Nobuffer) Test(
 	// +optional
 	luaVersion string,
 	// +optional
-	alpineVersion string,
+	imageName string,
+	// +optional
+	imageVersion string,
 	// +optional
 	luarocksVersion string,
 ) (string, error) {
 	lv := NewLuaVersion(luaVersion)
-	return m.BuildEnv(source, lv, alpineVersion, luarocksVersion).
+	return m.BuildEnv(source, lv, imageName, imageVersion, luarocksVersion).
 		WithExec([]string{lv.Executable(), "httpbin.lua"}).
 		Stdout(ctx)
 }
@@ -28,14 +30,16 @@ func (m *Nobuffer) BuildEnv(
 	source *dagger.Directory,
 	lv LuaVersion,
 	// +optional
-	alpineVersion string,
+	imageName string,
+	// +optional
+	imageVersion string,
 	// +optional
 	luarocksVersion string,
 ) *dagger.Container {
 	return m.InstallLuaDependencies(
 		m.InstallLuarocks(
 			m.InstallLua(
-				m.BaseEnv(source, alpineVersion),
+				m.BaseEnv(source, imageName, imageVersion),
 				lv,
 			),
 			lv,
@@ -48,11 +52,13 @@ func (m *Nobuffer) BuildEnv(
 func (m *Nobuffer) BaseEnv(
 	source *dagger.Directory,
 	// +optional
-	alpineVersion string,
+	imageName string,
+	// +optional
+	imageVersion string,
 ) *dagger.Container {
-	av := NewAlpineVersion(alpineVersion)
+	iv := NewImageVersion(imageName, imageVersion)
 	return dag.Container().
-		From(av.ImageName()).
+		From(iv.ImageName()).
 		WithDirectory("/src", source).
 		WithWorkdir("/src").
 		WithExec([]string{"apk", "update"}).
