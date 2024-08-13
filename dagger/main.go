@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"dagger/nobuffer/internal/dagger"
@@ -21,7 +22,10 @@ func (m *Nobuffer) Test(
 	// +optional
 	luarocksVersion string,
 ) (string, error) {
-	lv := NewLuaVersion(luaVersion)
+	lv, err := NewLuaVersion(luaVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to create LuaVersion: %w", err)
+	}
 	return m.BuildTestEnv(source, lv, imageName, imageVersion, luarocksVersion).
 		WithExec([]string{lv.Executable(), "httpbin.lua"}).
 		Stdout(ctx)
@@ -38,9 +42,12 @@ func (m *Nobuffer) BuildEnv(
 	imageVersion string,
 	// +optional
 	luarocksVersion string,
-) *dagger.Container {
-	lv := NewLuaVersion(luaVersion)
-	return m.baseEnv(source, lv, imageName, imageVersion, luarocksVersion)
+) (*dagger.Container, error) {
+	lv, err := NewLuaVersion(luaVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create LuaVersion: %w", err)
+	}
+	return m.baseEnv(source, lv, imageName, imageVersion, luarocksVersion), nil
 }
 
 func (m *Nobuffer) BuildTestEnv(
