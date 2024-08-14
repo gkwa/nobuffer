@@ -22,13 +22,13 @@ func (m *Nobuffer) Test(
 	// +optional
 	luarocksVersion string,
 ) (string, error) {
-	lv, err := NewLuaVersion(luaVersion)
+	container, err := m.BuildEnv(ctx, source, luaVersion, imageName, imageVersion, luarocksVersion)
 	if err != nil {
-		return "", fmt.Errorf("failed to create LuaVersion: %w", err)
+		return "", err
 	}
-	return m.BuildTestEnv(ctx, source, lv.version, imageName, imageVersion, luarocksVersion).
-		WithExec([]string{lv.Executable(), "httpbin.lua"}).
-		Stdout(ctx)
+
+	lv, _ := NewLuaVersion(luaVersion)
+	return container.WithExec([]string{lv.Executable(), "httpbin.lua"}).Stdout(ctx)
 }
 
 func (m *Nobuffer) BuildEnv(
@@ -44,63 +44,23 @@ func (m *Nobuffer) BuildEnv(
 	luarocksVersion string,
 ) (*dagger.Container, error) {
 	lv, err := NewLuaVersion(luaVersion)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LuaVersion: %w", err)
 	}
-	baseContainer := m.baseEnv(lv, imageName, imageVersion, luarocksVersion)
-	containerWithDeps := m.installDependencies(baseContainer, lv)
-	return m.buildAndInstallHollowbeak(containerWithDeps, source), nil
-}
 
-func (m *Nobuffer) BuildTestEnv(
-	ctx context.Context,
-	source *dagger.Directory,
-	// +optional
-	luaVersion string,
-	// +optional
-	imageName string,
-	// +optional
-	imageVersion string,
-	// +optional
-	luarocksVersion string,
-) *dagger.Container {
-	lv, err := NewLuaVersion(luaVersion)
-	if err != nil {
-		panic(err)
-	}
-	baseContainer := m.baseEnv(lv, imageName, imageVersion, luarocksVersion)
-	containerWithDeps := m.installDependencies(baseContainer, lv)
-	return m.buildAndInstallHollowbeak(containerWithDeps, source)
-}
-
-func (m *Nobuffer) baseEnv(
-	lv LuaVersion,
-	// +optional
-	imageName string,
-	// +optional
-	imageVersion string,
-	// +optional
-	luarocksVersion string,
-) *dagger.Container {
 	iv := NewImageVersion(imageName, imageVersion)
 	lr := NewLuarocksVersion(luarocksVersion)
 
-	base := dag.Container().
+	container := dag.Container().
 		From(iv.ImageName()).
 		WithMountedCache("/var/cache/apk", dag.CacheVolume("apk-cache")).
 		WithExec([]string{"apk", "update"}).
 		WithExec([]string{"apk", "upgrade"}).
 		WithExec([]string{
 			"apk", "add", "--no-cache",
-			"make",
-			"tar",
-			"wget",
-			lv.PackageName(),
-			lv.DevPackageName(),
-		})
-
-	cont := base.
+			"make", "tar", "wget", "gcc", "libc-dev", "openssl-dev",
+			lv.PackageName(), lv.DevPackageName(),
+		}).
 		WithWorkdir("/").
 		WithExec([]string{"wget", lr.DownloadURL()}).
 		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
@@ -108,38 +68,27 @@ func (m *Nobuffer) baseEnv(
 		WithExec([]string{"sh", "-c", lv.AssertSingleLuaH()}).
 		WithExec([]string{"sh", "-c", strings.Join(lv.GetConfigureArgs(), " ")}).
 		WithExec([]string{"make"}).
+		WithExec([]string{"make"}).
 		WithExec([]string{"make", "install"}).
 		WithWorkdir("/").
 		WithExec([]string{
 			"rm", "-rf",
 			fmt.Sprintf("/luarocks-%s", lr.version),
 			lr.ArchiveName(),
-		})
-
-	return cont
-}
-
-func (m *Nobuffer) installDependencies(
-	base *dagger.Container,
-	lv LuaVersion,
-) *dagger.Container {
-	return base.
-		WithExec([]string{
-			"apk", "add", "--no-cache",
-			"gcc",
-			"libc-dev",
-			"openssl-dev",
 		}).
 		WithExec([]string{"luarocks", "install", "luasec"}).
-		WithExec([]string{"luarocks", "install", "luasec"}).
 		WithExec([]string{"luarocks", "install", "dkjson"})
+
+	hollowbeakContainer := m.buildHollowbeak(source)
+
+	return container.
+		WithFile("/bin/hollowbeak", hollowbeakContainer.File("/src/hollowbeak/hollowbeak")).
+		WithDirectory("/src", source).
+		WithWorkdir("/src"), nil
 }
 
-func (m *Nobuffer) buildAndInstallHollowbeak(
-	base *dagger.Container,
-	source *dagger.Directory,
-) *dagger.Container {
-	builder := dag.Container().
+func (m *Nobuffer) buildHollowbeak(source *dagger.Directory) *dagger.Container {
+	return dag.Container().
 		From("golang:latest").
 		WithDirectory("/src", source).
 		WithWorkdir("/src/hollowbeak").
@@ -149,9 +98,4 @@ func (m *Nobuffer) buildAndInstallHollowbeak(
 		WithEnvVariable("GOCACHE", "/go/build-cache").
 		WithEnvVariable("CGO_ENABLED", "0").
 		WithExec([]string{"go", "build", "-o", "hollowbeak"})
-
-	return base.
-		WithFile("/bin/hollowbeak", builder.File("/src/hollowbeak/hollowbeak")).
-		WithDirectory("/src", source).
-		WithWorkdir("/src")
 }
