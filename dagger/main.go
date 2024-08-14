@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"dagger/nobuffer/internal/dagger"
 )
@@ -27,8 +28,7 @@ func (m *Nobuffer) Test(
 		return "", err
 	}
 
-	lv, _ := NewLuaVersion(luaVersion)
-	return container.WithExec([]string{lv.Executable(), "httpbin.lua"}).Stdout(ctx)
+	return container.WithExec([]string{"lua", "httpbin.lua"}).Stdout(ctx)
 }
 
 func (m *Nobuffer) BuildEnv(
@@ -69,11 +69,16 @@ func (m *Nobuffer) BuildEnv(
 		WithWorkdir(lr.ExtractedDirPath()).
 		WithExec([]string{"sh", "-c", strings.Join(lv.GetConfigureArgs(), " ")}).
 		WithExec([]string{"make"}).
-		WithExec([]string{"make"}).
 		WithExec([]string{"make", "install"}).
 		WithExec([]string{"luarocks", "install", "luasec"}).
 		WithExec([]string{"luarocks", "install", "dkjson"}).
-		WithWorkdir("/").
+		WithExec([]string{"ln", "-s", fmt.Sprintf("/usr/bin/%s", lv.Executable()), "/usr/bin/lua"}).
+		WithLabel("org.opencontainers.image.title", "nobuffer").
+		WithLabel("org.opencontainers.image.version", lv.String()).
+		WithLabel("org.opencontainers.image.created", time.Now().Format(time.RFC3339)).
+		WithLabel("org.opencontainers.image.source", "https://github.com/gkwa/nobuffer").
+		WithLabel("org.opencontainers.image.licenses", "MIT").
+		WithWorkdir("/tmp").
 		WithExec([]string{
 			"rm", "-rf",
 			lr.ExtractedDirPath(),
@@ -91,6 +96,8 @@ func (m *Nobuffer) BuildEnv(
 func (m *Nobuffer) buildHollowbeak(source *dagger.Directory) *dagger.Container {
 	return dag.Container().
 		From("golang:latest").
+		WithExec([]string{"apt-get", "update"}).
+		WithExec([]string{"apt-get", "install", "--assume-yes", "make"}).
 		WithDirectory("/src", source).
 		WithWorkdir("/src/hollowbeak").
 		WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod-cache")).
@@ -98,5 +105,31 @@ func (m *Nobuffer) buildHollowbeak(source *dagger.Directory) *dagger.Container {
 		WithMountedCache("/go/build-cache", dag.CacheVolume("go-build-cache")).
 		WithEnvVariable("GOCACHE", "/go/build-cache").
 		WithEnvVariable("CGO_ENABLED", "0").
-		WithExec([]string{"go", "build", "-o", "hollowbeak"})
+		WithExec([]string{"make", "build"})
+}
+
+func (m *Nobuffer) BuildAndPublish(
+	ctx context.Context,
+	source *dagger.Directory,
+	// +optional
+	luaVersion string,
+	// +optional
+	imageName string,
+	// +optional
+	imageVersion string,
+	// +optional
+	luarocksVersion string,
+	registryURL string,
+) (string, error) {
+	container, err := m.BuildEnv(ctx, source, luaVersion, imageName, imageVersion, luarocksVersion)
+	if err != nil {
+		return "", err
+	}
+
+	ref, err := container.Publish(ctx, registryURL)
+	if err != nil {
+		return "", err
+	}
+
+	return ref, nil
 }

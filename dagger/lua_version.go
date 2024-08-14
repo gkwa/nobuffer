@@ -44,6 +44,7 @@ func (lv LuaVersion) LuaIncludePath() string {
 }
 
 func (lv LuaVersion) AssertSingleLuaH() string {
+	// if there were two, we might choose the wrong one
 	return `test $(find /usr/include -type f -name lua.h | wc -l) -eq 1`
 }
 

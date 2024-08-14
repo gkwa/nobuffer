@@ -22,7 +22,7 @@ func (lv LuarocksVersion) DownloadURL() string {
 }
 
 func (lv LuarocksVersion) ArchiveName() string {
-	return fmt.Sprintf("luarocks-%s.tar.gz", lv.version)
+	return fmt.Sprintf("/src/luarocks-%s.tar.gz", lv.version)
 }
 
 func (lv LuarocksVersion) ExtractedDirPath() string {
