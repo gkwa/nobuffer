@@ -53,6 +53,7 @@ func (m *Nobuffer) BuildEnv(
 
 	container := dag.Container().
 		From(iv.ImageName()).
+		WithWorkdir("/src").
 		WithMountedCache("/var/cache/apk", dag.CacheVolume("apk-cache")).
 		WithExec([]string{"apk", "update"}).
 		WithExec([]string{"apk", "upgrade"}).
@@ -61,7 +62,6 @@ func (m *Nobuffer) BuildEnv(
 			"make", "tar", "wget", "gcc", "libc-dev", "openssl-dev",
 			lv.PackageName(), lv.DevPackageName(),
 		}).
-		WithWorkdir("/src").
 		WithExec([]string{"wget", lr.DownloadURL()}).
 		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
 		WithWorkdir(lr.ExtractedDirPath()).
@@ -71,14 +71,14 @@ func (m *Nobuffer) BuildEnv(
 		WithExec([]string{"make"}).
 		WithExec([]string{"make"}).
 		WithExec([]string{"make", "install"}).
+		WithExec([]string{"luarocks", "install", "luasec"}).
+		WithExec([]string{"luarocks", "install", "dkjson"}).
 		WithWorkdir("/").
 		WithExec([]string{
 			"rm", "-rf",
 			lr.ExtractedDirPath(),
 			lr.ArchiveName(),
-		}).
-		WithExec([]string{"luarocks", "install", "luasec"}).
-		WithExec([]string{"luarocks", "install", "dkjson"})
+		})
 
 	hollowbeakContainer := m.buildHollowbeak(source)
 

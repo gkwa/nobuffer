@@ -50,8 +50,6 @@ local data = dkjson.decode(json_response)
 -- Fetch the UUID from the parsed data
 local uuid = data.uuid
 
-print("Fetched UUID: " .. tostring(uuid))
-
 -- Assert that the UUID matches the expected format
 local uuid_pattern = "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$"
 assert(uuid:match(uuid_pattern), "UUID does not match expected format")
