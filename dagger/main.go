@@ -26,7 +26,7 @@ func (m *Nobuffer) Test(
 	if err != nil {
 		return "", fmt.Errorf("failed to create LuaVersion: %w", err)
 	}
-	return m.BuildTestEnv(source, lv, imageName, imageVersion, luarocksVersion).
+	return m.BuildTestEnv(ctx, source, lv.version, imageName, imageVersion, luarocksVersion).
 		WithExec([]string{lv.Executable(), "httpbin.lua"}).
 		Stdout(ctx)
 }
@@ -51,8 +51,10 @@ func (m *Nobuffer) BuildEnv(
 }
 
 func (m *Nobuffer) BuildTestEnv(
+	ctx context.Context,
 	source *dagger.Directory,
-	lv LuaVersion,
+	// +optional
+	luaVersion string,
 	// +optional
 	imageName string,
 	// +optional
@@ -60,6 +62,10 @@ func (m *Nobuffer) BuildTestEnv(
 	// +optional
 	luarocksVersion string,
 ) *dagger.Container {
+	lv, err := NewLuaVersion(luaVersion)
+	if err != nil {
+		panic(err)
+	}
 	return m.installTestDependencies(
 		m.baseEnv(source, lv, imageName, imageVersion, luarocksVersion),
 		lv,
@@ -79,8 +85,16 @@ func (m *Nobuffer) baseEnv(
 	iv := NewImageVersion(imageName, imageVersion)
 	lr := NewLuarocksVersion(luarocksVersion)
 
-	return dag.Container().
+	builder := dag.Container().
+		From("golang:latest").
+		WithDirectory("/src", source).
+		WithWorkdir("/src/hollowbeak").
+		WithEnvVariable("CGO_ENABLED", "0").
+		WithExec([]string{"go", "build", "-o", "hollowbeak"})
+
+	cont := dag.Container().
 		From(iv.ImageName()).
+		WithFile("/bin/hollowbeak", builder.File("/src/hollowbeak/hollowbeak")).
 		WithDirectory("/src", source).
 		WithWorkdir("/src").
 		WithExec([]string{"apk", "update"}).
@@ -106,6 +120,8 @@ func (m *Nobuffer) baseEnv(
 			lr.ExtractedDirPath(),
 			lr.ArchiveName(),
 		})
+
+	return cont
 }
 
 func (m *Nobuffer) installTestDependencies(
