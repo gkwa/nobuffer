@@ -41,7 +41,7 @@ exec CONTAINER_NAME="nobuffer-instance" COMMAND="/bin/sh":
     docker exec --tty --interactive {{CONTAINER_NAME}} {{COMMAND}}
 
 # Build and publish image with OCI labels
-publish REGISTRY_URL="ttl.sh/my-nobuffer:latest":
+publish REGISTRY_URL="ttl.sh/my-nobuffer:24h":
     dagger call build-and-publish --source=. --lua-version=5.4 --image-name=alpine --image-version=3.18 --registry-url={{REGISTRY_URL}}
 
 # Fetch the published image and run a container from it
