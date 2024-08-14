@@ -18,9 +18,7 @@ test-default:
 test:
     dagger call test \
         --source=. \
-        --lua-version=5.4 \
-        --image-name=alpine \
-        --image-version=3.18
+        --image-name=pandoc/core
 
 help:
     dagger call test --source=. --help
@@ -42,7 +40,7 @@ exec CONTAINER_NAME="nobuffer-instance" COMMAND="/bin/sh":
 
 # Build and publish image with OCI labels
 publish REGISTRY_URL="ttl.sh/my-nobuffer:24h":
-    dagger call build-and-publish --source=. --lua-version=5.4 --image-name=alpine --image-version=3.18 --registry-url={{REGISTRY_URL}}
+    dagger call build-and-publish --source=. --image=pandoc/core --registry-url={{REGISTRY_URL}}
 
 # Fetch the published image and run a container from it
 fetch-and-run IMAGE_URL="ttl.sh/my-nobuffer:latest" CONTAINER_NAME="nobuffer-instance":
