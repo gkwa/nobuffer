@@ -86,8 +86,6 @@ func (m *Nobuffer) baseEnv(
 	iv := NewImageVersion(imageName, imageVersion)
 	lr := NewLuarocksVersion(luarocksVersion)
 
-
-
 	base := dag.Container().
 		From(iv.ImageName()).
 		WithMountedCache("/var/cache/apk", dag.CacheVolume("apk-cache")).
@@ -102,13 +100,7 @@ func (m *Nobuffer) baseEnv(
 			lv.DevPackageName(),
 		})
 
-	luaCacheVolume := dag.CacheVolume(fmt.Sprintf("lua-cache-%s", lv.version))
-	luarocksCacheVolume := dag.CacheVolume(fmt.Sprintf("luarocks-cache-%s", lr.version))
-
 	cont := base.
-		WithMountedCache("/usr/local/lib/lua", luaCacheVolume).
-		WithMountedCache("/usr/local/share/lua", luaCacheVolume).
-		WithMountedCache("/usr/local/lib/luarocks", luarocksCacheVolume).
 		WithWorkdir("/").
 		WithExec([]string{"wget", lr.DownloadURL()}).
 		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
@@ -138,6 +130,7 @@ func (m *Nobuffer) installDependencies(
 			"libc-dev",
 			"openssl-dev",
 		}).
+		WithExec([]string{"luarocks", "install", "luasec"}).
 		WithExec([]string{"luarocks", "install", "luasec"}).
 		WithExec([]string{"luarocks", "install", "dkjson"})
 }
