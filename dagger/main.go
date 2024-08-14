@@ -61,11 +61,12 @@ func (m *Nobuffer) BuildEnv(
 			"make", "tar", "wget", "gcc", "libc-dev", "openssl-dev",
 			lv.PackageName(), lv.DevPackageName(),
 		}).
-		WithWorkdir("/").
+		WithWorkdir("/src").
 		WithExec([]string{"wget", lr.DownloadURL()}).
 		WithExec([]string{"tar", "zxpf", lr.ArchiveName()}).
-		WithWorkdir(fmt.Sprintf("/luarocks-%s", lr.version)).
+		WithWorkdir(lr.ExtractedDirPath()).
 		WithExec([]string{"sh", "-c", lv.AssertSingleLuaH()}).
+		WithWorkdir(lr.ExtractedDirPath()).
 		WithExec([]string{"sh", "-c", strings.Join(lv.GetConfigureArgs(), " ")}).
 		WithExec([]string{"make"}).
 		WithExec([]string{"make"}).
@@ -73,7 +74,7 @@ func (m *Nobuffer) BuildEnv(
 		WithWorkdir("/").
 		WithExec([]string{
 			"rm", "-rf",
-			fmt.Sprintf("/luarocks-%s", lr.version),
+			lr.ExtractedDirPath(),
 			lr.ArchiveName(),
 		}).
 		WithExec([]string{"luarocks", "install", "luasec"}).
