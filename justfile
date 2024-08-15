@@ -2,13 +2,12 @@
 default:
     @just --list
 
-# Export the image from Dagger and import it into Docker
-export-import IMAGE_NAME="nobuffer":
+export:
     #!/usr/bin/env bash
     set -euxo pipefail
-    dagger export -o image.tar
-    docker import image.tar {{IMAGE_NAME}}
-    rm image.tar
+    dagger call build-env --source=. export --path=nobuffer.tgz
+    docker import nobuffer.tgz
+    rm -f nobuffer.tgz
 
 # Run tests using Dagger
 test-default:
@@ -18,17 +17,10 @@ test-default:
 test:
     dagger call test \
         --source=. \
-        --image-name=pandoc/core
+        --image-name=alpine
 
 help:
     dagger call test --source=. --help
-
-# Build, export, import, and test in one command
-all: export-import test
-
-# Clean up build artifacts
-clean:
-    rm -f nobuffer image.tar
 
 # Build and run the exported image
 run IMAGE_NAME="nobuffer" CONTAINER_NAME="nobuffer-instance":
@@ -40,10 +32,10 @@ exec CONTAINER_NAME="nobuffer-instance" COMMAND="/bin/sh":
 
 # Build and publish image with OCI labels
 publish REGISTRY_URL="ttl.sh/my-nobuffer:24h":
-    dagger call build-and-publish --source=. --image=pandoc/core --registry-url={{REGISTRY_URL}}
+    dagger call build-and-publish --source=. --image-name=pandoc/core --registry-url={{REGISTRY_URL}}
 
 # Fetch the published image and run a container from it
-fetch-and-run IMAGE_URL="ttl.sh/my-nobuffer:latest" CONTAINER_NAME="nobuffer-instance":
+fetch-and-run IMAGE_URL="ttl.sh/my-nobuffer:24h" CONTAINER_NAME="nobuffer-instance":
     #!/usr/bin/env bash
     set -euo pipefail
     
@@ -57,7 +49,7 @@ fetch-and-run IMAGE_URL="ttl.sh/my-nobuffer:latest" CONTAINER_NAME="nobuffer-ins
     fi
     
     # Run the new container
-    docker run --name {{CONTAINER_NAME}} --detach {{IMAGE_URL}} sleep infinity
+    docker run --name {{CONTAINER_NAME}} --detach {{IMAGE_URL}} --entrypoint=bash -c "sleep infinity"
     
     echo "Container {{CONTAINER_NAME}} is now running. Use 'just exec {{CONTAINER_NAME}}' to interact with it."
     echo "To stop and remove the container, use 'docker stop {{CONTAINER_NAME}} && docker rm {{CONTAINER_NAME}}'"

@@ -9,7 +9,7 @@ type ImageVersion struct {
 
 func NewImageVersion(name, version string) ImageVersion {
 	if name == "" {
-		name = "alpine"
+		name = "pandoc/core"
 	}
 	if version == "" {
 		version = "latest"
