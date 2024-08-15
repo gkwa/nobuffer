@@ -72,6 +72,7 @@ func (m *Nobuffer) BuildEnv(
 		WithExec([]string{"make", "install"}).
 		WithExec([]string{"luarocks", "install", "luasec"}).
 		WithExec([]string{"luarocks", "install", "dkjson"}).
+		WithExec([]string{"luarocks", "install", "luaunit"}).
 		WithExec([]string{"ln", "-s", fmt.Sprintf("/usr/bin/%s", lv.Executable()), "/usr/bin/lua"}).
 		WithLabel("org.opencontainers.image.title", "nobuffer").
 		WithLabel("org.opencontainers.image.version", lv.String()).
