@@ -28,7 +28,8 @@ func (m *Nobuffer) Test(
 		return "", err
 	}
 
-	return container.WithExec([]string{"lua", "httpbin.lua"}).Stdout(ctx)
+	return container.WithExec([]string{"lua", "httpbin.lua"}).
+		WithExec([]string{"lua", "test_httpbin.lua"}).Stdout(ctx)
 }
 
 func (m *Nobuffer) BuildEnv(

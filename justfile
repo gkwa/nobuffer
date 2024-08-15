@@ -15,9 +15,7 @@ test-default:
 
 # Run tests using Dagger
 test:
-    dagger call test \
-        --source=. \
-        --image-name=alpine
+    dagger call test --source=. --image-name=alpine
 
 help:
     dagger call test --source=. --help
